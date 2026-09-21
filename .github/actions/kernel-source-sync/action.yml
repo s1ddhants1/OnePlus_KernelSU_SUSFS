@@ -100,45 +100,50 @@ runs:
                     found_in_cache = False
                     if label:
                         base_filename = f"{label}-{rev}.tar.gz"
-                        BASE_URL = f"https://github.com/{TARGET_REPO}/releases/download/toolchain-cache"
+                        candidate_repos = [TARGET_REPO]
+                        if TARGET_REPO != "WildKernels/OnePlus_KernelSU_SUSFS":
+                            candidate_repos.append("WildKernels/OnePlus_KernelSU_SUSFS")
                         
-                        check_single = f"curl -IsL {curl_headers} --retry 10 --connect-timeout 30 -o /dev/null -w '%{{http_code}}' {BASE_URL}/{base_filename}"
-                        if subprocess.check_output(check_single, shell=True).decode().strip() == "200":
-                            if DEBUG: print(f"  [CACHE] Downloading single file: {base_filename}")
-                            aria_cmd = f"aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 -d {shm_workspace} --file-allocation=none {aria_quiet_flags} {aria2_headers} -o {base_filename} {BASE_URL}/{base_filename}"
-                            subprocess.run(aria_cmd, shell=True, check=True, capture_output=not DEBUG)
-                            found_in_cache = True
-                        else:
-                            if DEBUG: print(f"  [CACHE] Single file not found, checking parts for {base_filename}...")
-                            parts_to_download = []
-                            for suffix in [f"a{c}" for c in "abcdefghijklmnopqrstuvwxyz"]:
-                                part_name = f"{base_filename}.part{suffix}"
-                                check_part = f"curl -IsL {curl_headers} --retry 10 --connect-timeout 30 -o /dev/null -w '%{{http_code}}' {BASE_URL}/{part_name}"
-                                if subprocess.check_output(check_part, shell=True).decode().strip() == "200":
-                                    parts_to_download.append(f"{BASE_URL}/{part_name}")
-                                else:
-                                    break
-                            
-                            if parts_to_download:
-                                if DEBUG: print(f"  [CACHE] Found {len(parts_to_download)} parts. Downloading...")
-                                
-                                input_file_path = f"{base_filename}.urls"
-                                with open(input_file_path, "w") as f:
-                                    for part_url in parts_to_download:
-                                        p_suffix = part_url.split('.part')[-1]
-                                        p_name = f"{base_filename}.part{p_suffix}"
-                                        f.write(f"{part_url}\n  out={p_name}\n")
-                                
-                                aria_bulk_cmd = (
-                                    f"aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 -d {shm_workspace} --file-allocation=none "
-                                    f"{aria_quiet_flags} {aria2_headers} "
-                                    f"--input-file={input_file_path}"
-                                )
-                                
-                                subprocess.run(aria_bulk_cmd, shell=True, check=True, capture_output=not DEBUG)
-                                os.remove(input_file_path)
+                        for repo in candidate_repos:
+                            BASE_URL = f"https://github.com/{repo}/releases/download/toolchain-cache"
+                            check_single = f"curl -IsL {curl_headers} --retry 5 --connect-timeout 30 -o /dev/null -w '%{{http_code}}' {BASE_URL}/{base_filename}"
+                            if subprocess.check_output(check_single, shell=True).decode().strip() == "200":
+                                if DEBUG: print(f"  [CACHE] Downloading single file from {repo}: {base_filename}")
+                                aria_cmd = f"aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 -d {shm_workspace} --file-allocation=none {aria_quiet_flags} {aria2_headers} -o {base_filename} {BASE_URL}/{base_filename}"
+                                subprocess.run(aria_cmd, shell=True, check=True, capture_output=not DEBUG)
                                 found_in_cache = True
-                            
+                                break
+                            else:
+                                if DEBUG: print(f"  [CACHE] Single file not found in {repo}, checking parts for {base_filename}...")
+                                parts_to_download = []
+                                for suffix in [f"a{c}" for c in "abcdefghijklmnopqrstuvwxyz"]:
+                                    part_name = f"{base_filename}.part{suffix}"
+                                    check_part = f"curl -IsL {curl_headers} --retry 5 --connect-timeout 30 -o /dev/null -w '%{{http_code}}' {BASE_URL}/{part_name}"
+                                    if subprocess.check_output(check_part, shell=True).decode().strip() == "200":
+                                        parts_to_download.append(f"{BASE_URL}/{part_name}")
+                                    else:
+                                        break
+                                
+                                if parts_to_download:
+                                    if DEBUG: print(f"  [CACHE] Found {len(parts_to_download)} parts in {repo}. Downloading...")
+                                    input_file_path = f"{base_filename}.urls"
+                                    with open(input_file_path, "w") as f:
+                                        for part_url in parts_to_download:
+                                            p_suffix = part_url.split('.part')[-1]
+                                            p_name = f"{base_filename}.part{p_suffix}"
+                                            f.write(f"{part_url}\n  out={p_name}\n")
+                                    
+                                    aria_bulk_cmd = (
+                                        f"aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 -d {shm_workspace} --file-allocation=none "
+                                        f"{aria_quiet_flags} {aria2_headers} "
+                                        f"--input-file={input_file_path}"
+                                    )
+                                    
+                                    subprocess.run(aria_bulk_cmd, shell=True, check=True, capture_output=not DEBUG)
+                                    os.remove(input_file_path)
+                                    found_in_cache = True
+                                    break
+                        
                         if not found_in_cache:
                             print(f"::error::[FATAL ERROR] Toolchain {base_filename} NOT FOUND in GitHub Release cache!")
                             print(f"::error::[FATAL ERROR] Please Run Mirror Toolchain Workflow or select sync toolchain during build!!!")
