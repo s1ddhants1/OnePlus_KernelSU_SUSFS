@@ -35,7 +35,7 @@ on:
         description: 'Enter KernelSU build json'
         required: true
         type: string
-        default: '[{"type":"ksun","hash":"dev"}]'
+        default: '[{"type":"ksun","hash":"234f6e040fcbca18b16d2398e1aa225712ec99ad"}]'
       optimize_level:
         description: "Compiler optimization level"
         required: true
@@ -71,7 +71,7 @@ on:
       android14-6_1_susfs_branch_or_commit:
         description: 'Enter SusFS Branch or commit hash for android14-6.1'
         type: string
-        default: ''
+        default: 'e287d59066380bf6de4396532d4a42edf4408701'
       android15-6_6_susfs_branch_or_commit:
         description: 'Enter SusFS Branch or commit hash for android15-6.6'
         type: string
@@ -116,7 +116,7 @@ jobs:
           
           input="${{ github.event.inputs.op_model }}"
           ksu_options_raw='${{ github.event.inputs.ksu_options }}'
-          if ! ksu_options_normalized=$(echo "$ksu_options_raw" | jq -c 'map(if .type then .type |= ascii_upcase | if .hash == null then if .type == "KSUN" then .hash = "dev" elif .type == "KSU" then .hash = "main" else .hash end else . end else error("No type found") end)' 2>&1); then
+          if ! ksu_options_normalized=$(echo "$ksu_options_raw" | jq -c 'map(if .type then .type |= ascii_upcase | if .type == "KSUN" and (.hash == null or .hash == "dev") then .hash = "234f6e040fcbca18b16d2398e1aa225712ec99ad" elif .type == "KSU" and (.hash == null or .hash == "main") then .hash = "main" else . end else error("No type found") end)' 2>&1); then
             echo "::error::ksu_options validation failed: $ksu_options_normalized"
             exit 1
           fi
@@ -282,7 +282,7 @@ jobs:
           declare -A default_branches=(
             ["android12-5.10"]="gki-android12-5.10"
             ["android13-5.15"]="gki-android13-5.15"
-            ["android14-6.1"]="077730110ca6d389c6d39df4d43529b3189b5189"
+            ["android14-6.1"]="e287d59066380bf6de4396532d4a42edf4408701"
             ["android15-6.6"]="gki-android15-6.6"
             ["android16-6.12"]="gki-android16-6.12"
           )
