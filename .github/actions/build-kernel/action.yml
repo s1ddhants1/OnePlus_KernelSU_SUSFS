@@ -803,7 +803,8 @@ runs:
           while [ $attempt -le $max_attempts ]; do
               echo " Attempt $attempt/$max_attempts: High-speed fetch for $repo_name ($branch)"
               
-              if aria2c -x16 -s16 -j16 -k1M --retry-wait=2 --max-tries=5 -d "/dev/shm" -o "$archive_name" --allow-overwrite=true "${aria2_headers[@]}" $aria_log_flags "$download_url"; then
+              if aria2c -x4 -s4 -j4 -k1M --retry-wait=2 --max-tries=5 -d "/dev/shm" -o "$archive_name" --allow-overwrite=true "${aria2_headers[@]}" $aria_log_flags "$download_url" || \
+                 curl -fL --retry 5 --retry-delay 3 -A "Mozilla/5.0" -o "$shm_path" "$download_url"; then
                   mkdir -p "$repo_name"
                   if tar -I "pigz -p $nproc -b 256" -x --record-size=1M -f "$shm_path" -C "$repo_name" --strip-components=1 --no-same-owner; then
                       echo "✅ Success: $repo_name synced"
@@ -817,6 +818,15 @@ runs:
               sleep 5
               attempt=$((attempt + 1))
           done
+          
+          echo "⚠️ Archive fetch failed, falling back to git clone for $repo_name ($branch)..."
+          rm -rf "$repo_name" "$shm_path" 2>/dev/null
+          if git clone "$url" "$repo_name"; then
+              (cd "$repo_name" && git checkout "$branch") && {
+                  echo "✅ Success: $repo_name synced via git clone"
+                  return 0
+              }
+          fi
           
           echo "::error::All attempts failed for $url"
           return 1
