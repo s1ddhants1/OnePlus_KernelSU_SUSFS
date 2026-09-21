@@ -17,6 +17,8 @@ on:
         required: true
         type: choice
         options:
+          - OP12-A16
+          - OP12
           - A14+15+16
           - A15+16
           - A14+15
@@ -28,7 +30,7 @@ on:
           - android14-6.1
           - android13-5.15
           - android12-5.10
-        default: A14+15+16
+        default: OP12-A16
       ksu_options:
         description: 'Enter KernelSU build json'
         required: true
@@ -137,6 +139,12 @@ jobs:
           jq_filter="."
           
           case "$input" in
+            OP12-A16)
+              jq_filter="map(select(.model == \"OP12\" and .os_version == \"A16\"))"
+              ;;
+            OP12)
+              jq_filter="map(select(.model == \"OP12\"))"
+              ;;
             A14+15+16)
               ;;
             A15+16)
@@ -274,7 +282,7 @@ jobs:
           declare -A default_branches=(
             ["android12-5.10"]="gki-android12-5.10"
             ["android13-5.15"]="gki-android13-5.15"
-            ["android14-6.1"]="gki-android14-6.1"
+            ["android14-6.1"]="077730110ca6d389c6d39df4d43529b3189b5189"
             ["android15-6.6"]="gki-android15-6.6"
             ["android16-6.12"]="gki-android16-6.12"
           )
